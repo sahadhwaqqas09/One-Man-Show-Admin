@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/png" href="/favicon.png?v=6">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>One Man Show Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#090909;color:#f5f1e6;font:15px Arial,sans-serif}
+button,input,select,textarea{font:inherit}.hidden{display:none!important}
+.login{min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle,#d4af3718,transparent 45%)}
+.card,.panel{background:#121212;border:1px solid #d4af3730;border-radius:15px;padding:24px}.login .card{width:min(420px,92%)}h1,h2,h3{font-family:Georgia,serif}.muted{color:#999}
+input,select,textarea{width:100%;padding:11px;background:#080808;border:1px solid #d4af3730;border-radius:8px;color:white;margin:6px 0 14px}
+button{padding:10px 15px;border-radius:8px;border:1px solid #d4af3730;background:#191919;color:white;cursor:pointer}
+.gold{background:linear-gradient(135deg,#f3d77a,#d4af37);color:#111;border:0;font-weight:bold}
+.app{display:flex;min-height:100vh}.side{width:230px;background:#050505;border-right:1px solid #d4af3730;padding:22px;position:fixed;height:100vh}
+.side button{display:block;width:100%;text-align:left;margin:6px 0}.main{margin-left:230px;padding:28px;width:calc(100% - 230px)}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.stat{background:#121212;border:1px solid #d4af3730;border-radius:12px;padding:18px}.stat b{display:block;color:#f3d77a;font-size:28px;margin-top:8px}
+table{width:100%;border-collapse:collapse}th,td{padding:12px 7px;border-bottom:1px solid #ffffff0d;text-align:left}th{color:#999;font-size:12px}.pic{width:50px;height:50px;object-fit:cover;border-radius:7px;vertical-align:middle;margin-right:10px}
+.modal{display:none;position:fixed;inset:0;background:#000c;align-items:center;justify-content:center;padding:20px}.modal.show{display:flex}.modal .card{width:min(650px,100%);max-height:90vh;overflow:auto}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.full{grid-column:1/-1}.preview{width:90px;height:90px;object-fit:cover;display:none;border-radius:8px}.photo-wrap{position:relative;display:inline-block;vertical-align:top;margin-top:4px}.photo-remove{position:absolute;top:-8px;right:-8px;width:26px;height:26px;padding:0;border:2px solid #fff;border-radius:50%;background:#d62828;color:#fff;font-weight:bold;font-size:18px;line-height:20px;display:none}.photo-remove.show{display:block}.volume-row{display:grid;grid-template-columns:1fr 1fr 38px;gap:8px;align-items:center}.volume-row input{margin:4px 0 10px}.volume-remove{height:40px;padding:0;font-size:22px;color:#fff;background:#8e2222;border:0}
+@media(max-width:800px){.side{width:180px}.main{margin-left:180px;width:calc(100% - 180px);padding:18px}.stats{grid-template-columns:1fr 1fr}}
+@media(max-width:550px){.app{display:block}.side{position:static;width:100%;height:auto}.main{margin:0;width:100%}.grid{grid-template-columns:1fr}.full{grid-column:auto}.top{flex-direction:column;align-items:flex-start;gap:10px}}
+</style>
+</head>
+<body>
+
+<div id="login" class="login">
+<div class="card">
+<h1>One Man Show</h1><p class="muted">Admin Dashboard</p>
+<form id="loginForm">
+<label>Email</label><input id="email" type="email" required>
+<label>Password</label><input id="password" type="password" required>
+<button class="gold" style="width:100%">Sign In</button>
+<p id="loginError" style="color:#f88"></p>
+</form>
+</div></div>
+
+<div id="app" class="app hidden">
+<aside class="side">
+<h2>ONE MAN SHOW</h2><p class="muted">ADMIN</p>
+<button id="dashBtn" onclick="page('dash')" class="gold">Dashboard</button>
+<button onclick="page('products')">Products</button>
+<button onclick="openAdd()">＋ Add Product</button>
+<button onclick="logout()" style="margin-top:30px">Log Out</button>
+</aside>
+<main class="main">
+<section id="dash">
+<div class="top"><div><h1>Dashboard</h1><p class="muted">Manage the online catalogue.</p></div><button class="gold" onclick="openAdd()">＋ Add Product</button></div>
+<div class="stats">
+<div class="stat">Total<b id="total">0</b></div><div class="stat">Available<b id="available">0</b></div>
+<div class="stat">Out of Stock<b id="out">0</b></div><div class="stat">Categories<b id="cats">0</b></div>
+</div><div class="panel"><h3>Recent Products</h3><div id="recent"></div></div>
+</section>
+
+<section id="products" class="hidden">
+<div class="top"><div><h1>Products</h1><p class="muted">Cloud catalogue management.</p></div><button class="gold" onclick="openAdd()">＋ Add Product</button></div>
+<div class="panel"><input id="search" placeholder="Search products..." oninput="render()"><div id="table"></div></div>
+</section>
+
+</main></div>
+
+<div id="modal" class="modal"><div class="card">
+<div class="top"><h2 id="modalTitle">Add Product</h2><button onclick="closeModal()">×</button></div>
+<form id="productForm">
+<input type="hidden" id="editId"><input type="hidden" id="oldPath">
+<div class="grid">
+<div><label>Name</label><input id="name" required placeholder="Dior Sauvage"></div>
+<div><label>Category</label><select id="category" required><option value="">Select</option><option>Men</option><option>Women</option><option>Unisex</option><option>Oud</option><option>Attar</option><option>Gift Sets</option></select></div>
+<input id="price" type="hidden" value="0">
+<div><label>Status</label><select id="availability"><option value="available">Available</option><option value="out">Out of stock</option></select></div>
+<div class="full"><label>Volume &amp; Price Options</label><div id="volumeRows"></div><button type="button" onclick="addVolumeRow()">＋ Add Column</button><p class="muted" style="font-size:12px;margin-top:4px">Add each size and its price, for example 6 ml — ₹150 and 12 ml — ₹280. Use × to remove a size.</p></div>
+<div class="full"><label>Description</label><textarea id="description"></textarea></div>
+<div class="full"><label>Photo</label><input id="image" type="file" accept="image/*"><div class="photo-wrap"><img id="preview" class="preview"><button type="button" id="removePhoto" class="photo-remove" aria-label="Remove photo" title="Remove photo" onclick="clearPhoto()">×</button></div></div>
+</div>
+<button type="button" onclick="closeModal()">Cancel</button> <button id="save" class="gold">Save Product</button>
+</form></div></div>
+
+<script>
+/* REPLACE THESE TWO VALUES WITH YOUR SUPABASE PROJECT VALUES */
+const SUPABASE_URL="https://wexikrqqdinqmhyrvdtq.supabase.co";
+const SUPABASE_KEY="sb_publishable_WgRWRz94MLpgMs3PG821gQ_Re8RDBVx";
+const BUCKET="product-images";
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let products=[],editing=null,removeCurrentPhoto=false;
+
+const $=id=>document.getElementById(id);
+function msg(x){alert(x)}
+function page(which){$("dash").classList.toggle("hidden",which!=="dash");$("products").classList.toggle("hidden",which!=="products");if(which==="products")render()}
+async function start(){
+ const {data:{session}}=await db.auth.getSession();
+ session?showApp():showLogin();
+ db.auth.onAuthStateChange((_e,s)=>s?showApp():showLogin());
+}
+function showApp(){$("login").classList.add("hidden");$("app").classList.remove("hidden");load()}
+function showLogin(){$("app").classList.add("hidden");$("login").classList.remove("hidden")}
+$("loginForm").onsubmit=async e=>{
+ e.preventDefault();$("loginError").textContent="";
+ const {error}=await db.auth.signInWithPassword({email:$("email").value,password:$("password").value});
+ if(error)$("loginError").textContent=error.message;
+};
+async function logout(){await db.auth.signOut()}
+async function load(){
+ const {data,error}=await db.from("products").select("*").order("created_at",{ascending:false});
+ if(error)return msg(error.message);products=data||[];stats();render();recent();
+}
+function stats(){
+ $("total").textContent=products.length;
+ $("available").textContent=products.filter(p=>p.availability==="available").length;
+ $("out").textContent=products.filter(p=>p.availability==="out").length;
+ $("cats").textContent=new Set(products.map(p=>p.category)).size;
+}
+function esc(x){return String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+function normaliseVolumes(p){return Array.isArray(p?.volume_prices)?p.volume_prices.map(v=>({volume:String(v.volume??v.ml??""),price:String(v.price??"")})):[]}
+function priceSummary(p){const vs=normaliseVolumes(p).filter(v=>v.volume!==""&&v.price!=="");return vs.length?vs.map(v=>`${esc(v.volume)} ml — ₹${Number(v.price).toLocaleString("en-IN")}`).join("<br>"):`₹${Number(p.price||0).toLocaleString("en-IN")}`}
+function addVolumeRow(volume="",price=""){const row=document.createElement("div");row.className="volume-row";row.innerHTML=`<input class="volume-input" type="number" min="0.1" step="any" placeholder="Volume (ml)" aria-label="Volume in ml" value="${esc(volume)}"><input class="volume-price" type="number" min="0" step="0.01" placeholder="Price (₹)" aria-label="Price in rupees" value="${esc(price)}"><button type="button" class="volume-remove" title="Remove this volume" aria-label="Remove volume" onclick="this.parentElement.remove()">×</button>`;$("volumeRows").appendChild(row)}
+function getVolumeRows(){return [...document.querySelectorAll("#volumeRows .volume-row")].map(row=>({volume:Number(row.querySelector(".volume-input").value),price:Number(row.querySelector(".volume-price").value)}))}
+function setVolumeRows(rows){$("volumeRows").innerHTML="";(rows||[]).forEach(v=>addVolumeRow(v.volume??v.ml??"",v.price??""))}
+function image(path){
+ if(!path)return "";
+ return db.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+}
+function rows(list){
+ if(!list.length)return "<p class='muted'>No products found.</p>";
+ return `<table><tr><th>Product</th><th>Category</th><th>Price</th><th>Status</th><th></th></tr>`+
+ list.map(p=>`<tr><td>${p.image_path?`<img class="pic" src="${image(p.image_path)}">`:""}<b>${esc(p.name)}</b></td><td>${esc(p.category)}</td><td>${priceSummary(p)}</td><td>${p.availability==="available"?"<span style='color:#72d6a0'>Available</span>":"<span style='color:#e66'>Out</span>"}</td><td><button onclick="edit('${p.id}')">Edit</button> <button onclick="removeProduct('${p.id}')">Delete</button></td></tr>`).join("")+"</table>";
+}
+function render(){
+ let q=($("search")?.value||"").toLowerCase();
+ $("table").innerHTML=rows(products.filter(p=>(p.name+" "+p.category).toLowerCase().includes(q)));
+}
+function recent(){$("recent").innerHTML=rows(products.slice(0,5))}
+function showPhotoControls(){const visible=$("preview").style.display!=="none"&&!!$("preview").getAttribute("src");$("removePhoto").classList.toggle("show",visible)}
+function clearPhoto(){removeCurrentPhoto=true;$("image").value="";$("preview").removeAttribute("src");$("preview").style.display="none";$("removePhoto").classList.remove("show")}
+function openAdd(){editing=null;removeCurrentPhoto=false;$("productForm").reset();$("image").value="";$("editId").value="";$("oldPath").value="";$("preview").removeAttribute("src");$("preview").style.display="none";$("removePhoto").classList.remove("show");setVolumeRows([]);$("modalTitle").textContent="Add Product";$("modal").classList.add("show")}
+
+function edit(id){
+ editing=products.find(p=>p.id===id);if(!editing)return;removeCurrentPhoto=false;$("image").value="";
+ $("editId").value=id;$("oldPath").value=editing.image_path||"";$("name").value=editing.name;$("category").value=editing.category;$("price").value=editing.price||0;$("availability").value=editing.availability;$("description").value=editing.description||"";setVolumeRows(normaliseVolumes(editing));
+ $("modalTitle").textContent="Edit Product";if(editing.image_path){$("preview").src=image(editing.image_path);$("preview").style.display="block";}else{$("preview").removeAttribute("src");$("preview").style.display="none";}showPhotoControls();$("modal").classList.add("show");
+}
+
+function closeModal(){$("modal").classList.remove("show");editing=null;removeCurrentPhoto=false}
+async function upload(file){
+ const ext=file.name.split(".").pop().toLowerCase(),path=crypto.randomUUID()+"."+ext;
+ const {error}=await db.storage.from(BUCKET).upload(path,file,{contentType:file.type});
+ if(error)throw error;return path;
+}
+$("productForm").onsubmit=async e=>{
+ e.preventDefault();$("save").disabled=true;$("save").textContent="Saving...";
+ try{
+  const oldImagePath=editing?.image_path||null;let path=removeCurrentPhoto?null:(oldImagePath||null), file=$("image").files[0];
+  if(file){path=await upload(file)}
+  const volumes=getVolumeRows();
+  if(!volumes.length)throw new Error("Please add at least one volume and price option.");
+  if(volumes.some(v=>!Number.isFinite(v.volume)||v.volume<=0||!Number.isFinite(v.price)||v.price<0))throw new Error("Please enter a valid volume (ml) and price for every row.");
+  const seen=new Set();for(const v of volumes){if(seen.has(v.volume))throw new Error("Each volume must be unique for this perfume.");seen.add(v.volume)}
+  const p={name:$("name").value.trim(),category:$("category").value,price:Math.min(...volumes.map(v=>v.price)),volume_prices:volumes,availability:$("availability").value,description:$("description").value.trim(),image_path:path};
+  let result=editing?await db.from("products").update(p).eq("id",editing.id):await db.from("products").insert(p);
+  if(result.error)throw result.error;
+  if(oldImagePath&&(removeCurrentPhoto||file))await db.storage.from(BUCKET).remove([oldImagePath]);
+  closeModal();await load();msg("Product saved!");
+ }catch(err){msg(err.message)}finally{$("save").disabled=false;$("save").textContent="Save Product"}
+};
+async function removeProduct(id){
+ const p=products.find(x=>x.id===id);if(!p||!confirm("Delete "+p.name+"?"))return;
+ const {error}=await db.from("products").delete().eq("id",id);if(error)return msg(error.message);
+ if(p.image_path)await db.storage.from(BUCKET).remove([p.image_path]);await load();
+}
+$("image").onchange=e=>{let f=e.target.files[0];if(!f)return;removeCurrentPhoto=false;let r=new FileReader();r.onload=x=>{$("preview").src=x.target.result;$("preview").style.display="block";showPhotoControls()};r.readAsDataURL(f)}
+
+
+start();
+</script>
+</body></html>
